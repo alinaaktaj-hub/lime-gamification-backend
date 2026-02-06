@@ -1,0 +1,24 @@
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+from pydantic import BaseModel
+
+
+class StudentQuestResponse(BaseModel):
+    id: UUID
+    student_id: UUID
+    quest_id: UUID
+    quest_title: Optional[str] = None
+    current_q: int
+    correct_count: int
+    total_count: int
+    status: str
+    started_at: datetime
+    finished_at: Optional[datetime]
+
+
+class QuestCompleteResponse(BaseModel):
+    xp_earned: int
+    total_xp: int
+    level: int
+    achievement_earned: Optional[str] = None
