@@ -1,5 +1,8 @@
 import os
+from dotenv import load_dotenv
 from fastapi.security import HTTPBearer
+
+load_dotenv()
 
 ENV = os.getenv("ENV", "development")
 
