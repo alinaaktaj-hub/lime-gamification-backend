@@ -112,7 +112,7 @@ async def init_db():
             )
         """)
 
-        # сид админа — это надо удалить крч перед продом
+        # это надо удалить крч перед продом
         if INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD:
             exists = await conn.fetchval(
                 "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)",
