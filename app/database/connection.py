@@ -20,11 +20,25 @@ async def init_db():
                 name            TEXT NOT NULL,
                 surname         TEXT NOT NULL,
                 username        TEXT UNIQUE NOT NULL,
+                email           TEXT,
                 hashed_password TEXT NOT NULL,
                 role            TEXT NOT NULL CHECK (role IN ('student','teacher','admin')),
+                must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
                 created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
         """)
+        await conn.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT"
+        )
+        await conn.execute(
+            """ALTER TABLE users
+               ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN
+               NOT NULL DEFAULT TRUE"""
+        )
+        await conn.execute(
+            """CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_not_null_idx
+               ON users(email) WHERE email IS NOT NULL"""
+        )
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS student_data (
