@@ -66,32 +66,38 @@ class StudentQuestService:
     async def _complete_quest(
         self, student_id: UUID, sq_id: UUID, quest_id: UUID
     ) -> QuestCompleteResponse:
-        await self.sq_repo.complete(sq_id)
-        quest = await self.quest_repo.find_by_id(quest_id)
-        sd = await self.user_repo.update_student_xp(student_id, quest.xp_reward)
+        async with self.conn.transaction():
+            completed = await self.sq_repo.complete(sq_id)
+            if not completed:
+                raise HTTPException(status_code=409, detail="Quest already completed")
 
-        achievement_name = None
-        achievement = await self.achievement_repo.find_by_quest(quest_id)
-        if achievement:
-            if not await self.achievement_repo.has_achievement(student_id, achievement.id):
-                await self.achievement_repo.award(student_id, achievement.id)
-                achievement_name = achievement.name
+            quest = await self.quest_repo.find_by_id(quest_id)
+            if not quest:
+                raise HTTPException(status_code=404, detail="Quest not found")
 
-        return QuestCompleteResponse(
-            xp_earned=quest.xp_reward, total_xp=sd.total_xp,
-            level=sd.level, achievement_earned=achievement_name,
-        )
+            sd = await self.user_repo.update_student_xp(student_id, quest.xp_reward)
+
+            achievement_name = None
+            achievement = await self.achievement_repo.find_by_quest(quest_id)
+            if achievement:
+                if not await self.achievement_repo.has_achievement(student_id, achievement.id):
+                    await self.achievement_repo.award(student_id, achievement.id)
+                    achievement_name = achievement.name
+
+            return QuestCompleteResponse(
+                xp_earned=quest.xp_reward, total_xp=sd.total_xp,
+                level=sd.level, achievement_earned=achievement_name,
+            )
 
     async def finish_quest(
         self, student_id: UUID, quest_id: UUID
     ) -> QuestCompleteResponse:
-        # хз что такое — можно вызвать явно, но последний ответ и так автозавершает
         sq = await self.sq_repo.find_active(student_id, quest_id)
-        if sq:
-            return await self._complete_quest(student_id, sq.id, quest_id)
-        quest = await self.quest_repo.find_by_id(quest_id)
-        sd = await self.user_repo.get_student_data(student_id)
-        return QuestCompleteResponse(
-            xp_earned=0, total_xp=sd.total_xp if sd else 0,
-            level=sd.level if sd else 1, achievement_earned=None,
-        )
+        if not sq:
+            raise HTTPException(status_code=404, detail="No active quest found")
+        if sq.current_q < sq.total_count:
+            raise HTTPException(
+                status_code=400,
+                detail="Answer all quest questions before finishing",
+            )
+        return await self._complete_quest(student_id, sq.id, quest_id)

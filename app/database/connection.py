@@ -14,6 +14,7 @@ async def init_db():
     db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=10)
 
     async with db_pool.acquire() as conn:
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -27,6 +27,15 @@ class QuestRepository:
         )
         return QuestEntity(**dict(row)) if row else None
 
+    async def is_owned_by(self, quest_id: UUID, teacher_id: UUID) -> bool:
+        return await self.conn.fetchval(
+            """SELECT EXISTS(
+                 SELECT 1 FROM quests WHERE id = $1 AND teacher_id = $2
+               )""",
+            quest_id,
+            teacher_id,
+        )
+
     async def list_active(self) -> List[QuestEntity]:
         rows = await self.conn.fetch(
             "SELECT * FROM quests WHERE is_active = true ORDER BY created_at DESC"

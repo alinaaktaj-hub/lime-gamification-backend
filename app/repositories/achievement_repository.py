@@ -26,6 +26,28 @@ class AchievementRepository:
         )
         return AchievementEntity(**dict(row)) if row else None
 
+    async def find_by_id(self, achievement_id: UUID) -> Optional[AchievementEntity]:
+        row = await self.conn.fetchrow(
+            "SELECT * FROM achievements WHERE id = $1", achievement_id
+        )
+        return AchievementEntity(**dict(row)) if row else None
+
+    async def update(self, achievement_id: UUID, **fields) -> Optional[AchievementEntity]:
+        if not fields:
+            return await self.find_by_id(achievement_id)
+        sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
+        row = await self.conn.fetchrow(
+            f"UPDATE achievements SET {sets} WHERE id = $1 RETURNING *",
+            achievement_id, *fields.values(),
+        )
+        return AchievementEntity(**dict(row)) if row else None
+
+    async def delete(self, achievement_id: UUID) -> bool:
+        result = await self.conn.execute(
+            "DELETE FROM achievements WHERE id = $1", achievement_id
+        )
+        return result == "DELETE 1"
+
     async def award(self, student_id: UUID, achievement_id: UUID) -> None:
         await self.conn.execute(
             """INSERT INTO student_achievements (student_id, achievement_id)

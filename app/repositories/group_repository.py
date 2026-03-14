@@ -35,15 +35,12 @@ class GroupRepository:
         return [GroupEntity(**dict(r)) for r in rows]
 
     async def add_student(self, group_id: UUID, student_id: UUID) -> bool:
-        try:
-            await self.conn.execute(
-                """INSERT INTO group_students (group_id, student_id)
-                   VALUES ($1, $2) ON CONFLICT DO NOTHING""",
-                group_id, student_id,
-            )
-            return True
-        except Exception:
-            return False
+        result = await self.conn.execute(
+            """INSERT INTO group_students (group_id, student_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING""",
+            group_id, student_id,
+        )
+        return result == "INSERT 0 1"
 
     async def remove_student(self, group_id: UUID, student_id: UUID) -> bool:
         result = await self.conn.execute(
