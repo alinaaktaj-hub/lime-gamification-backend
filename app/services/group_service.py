@@ -5,6 +5,7 @@ import asyncpg
 from fastapi import HTTPException
 
 from app.repositories.group_repository import GroupRepository
+from app.repositories.user_repository import UserRepository
 from app.dtos.group_dtos import GroupResponse, GroupDetailResponse
 from app.dtos.user_dtos import StudentResponse
 
@@ -12,6 +13,7 @@ from app.dtos.user_dtos import StudentResponse
 class GroupService:
     def __init__(self, conn: asyncpg.Connection):
         self.group_repo = GroupRepository(conn)
+        self.user_repo = UserRepository(conn)
 
     async def create_group(self, name: str, teacher_id: UUID) -> GroupResponse:
         entity = await self.group_repo.create(name, teacher_id)
@@ -54,6 +56,11 @@ class GroupService:
             raise HTTPException(status_code=404, detail="Group not found")
         if group.teacher_id != teacher_id:
             raise HTTPException(status_code=403, detail="Forbidden")
+        student = await self.user_repo.find_by_id(student_id)
+        if not student:
+            raise HTTPException(status_code=400, detail="Student not found")
+        if student.role != "student":
+            raise HTTPException(status_code=400, detail="Target user must be a student")
         try:
             await self.group_repo.add_student(group_id, student_id)
         except asyncpg.ForeignKeyViolationError:

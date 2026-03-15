@@ -15,8 +15,13 @@ async def login(body: LoginRequest, conn: asyncpg.Connection = Depends(get_db)):
     service = AuthService(conn)
     token = await service.authenticate(body.username, body.password)
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Invalid username or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "invalid_credentials",
+                "message": "Invalid username or password",
+            },
+        )
     return TokenResponse(access_token=token)
 
 

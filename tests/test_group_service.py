@@ -52,8 +52,70 @@ def test_add_student_returns_http_error_on_db_fk_failure():
         find_by_id=find_group,
         add_student=add_student,
     )
+    async def find_user(uid):
+        return SimpleNamespace(id=uid, role="student")
+
+    service.user_repo = SimpleNamespace(find_by_id=find_user)
 
     with pytest.raises(HTTPException) as exc:
         asyncio.run(service.add_student(group_id, student_id, teacher_id))
 
     assert exc.value.status_code == 400
+
+
+def test_add_student_rejects_non_student_user():
+    group_id = uuid4()
+    teacher_id = uuid4()
+    target_user_id = uuid4()
+
+    service = GroupService(None)
+
+    async def find_group(gid):
+        return SimpleNamespace(id=group_id, teacher_id=teacher_id)
+
+    async def find_user(uid):
+        return SimpleNamespace(id=uid, role="teacher")
+
+    async def add_student(gid, sid):
+        return True
+
+    service.group_repo = SimpleNamespace(
+        find_by_id=find_group,
+        add_student=add_student,
+    )
+    service.user_repo = SimpleNamespace(find_by_id=find_user)
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(service.add_student(group_id, target_user_id, teacher_id))
+
+    assert exc.value.status_code == 400
+    assert "student" in exc.value.detail.lower()
+
+
+def test_add_student_allows_student_user():
+    group_id = uuid4()
+    teacher_id = uuid4()
+    student_id = uuid4()
+    called = {"value": False}
+
+    service = GroupService(None)
+
+    async def find_group(gid):
+        return SimpleNamespace(id=group_id, teacher_id=teacher_id)
+
+    async def find_user(uid):
+        return SimpleNamespace(id=uid, role="student")
+
+    async def add_student(gid, sid):
+        called["value"] = True
+        return True
+
+    service.group_repo = SimpleNamespace(
+        find_by_id=find_group,
+        add_student=add_student,
+    )
+    service.user_repo = SimpleNamespace(find_by_id=find_user)
+
+    asyncio.run(service.add_student(group_id, student_id, teacher_id))
+
+    assert called["value"] is True

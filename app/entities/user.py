@@ -10,6 +10,7 @@ class UserEntity(BaseModel):
     username: str
     hashed_password: str
     role: str
+    must_change_password: bool = True
     created_at: datetime
 
 

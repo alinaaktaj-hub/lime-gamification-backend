@@ -21,7 +21,7 @@ from app.dtos.achievement_dtos import (
     AchievementUpdate,
 )
 from app.dtos.group_dtos import GroupCreate, GroupResponse, GroupDetailResponse
-from app.dtos.user_dtos import UserCreate, UserResponse
+from app.dtos.user_dtos import StudentCreate, UserCreate, UserResponse
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
 
@@ -218,7 +218,7 @@ async def delete_achievement(
 
 @router.post("/students", response_model=UserResponse)
 async def create_student(
-    body: UserCreate,
+    body: StudentCreate,
     user: UserEntity = Depends(require_teacher),
     conn: asyncpg.Connection = Depends(get_db),
 ):

@@ -45,7 +45,7 @@ async def get_quest_questions(
     user: UserEntity = Depends(require_student),
     conn: asyncpg.Connection = Depends(get_db),
 ):
-    # без correct
+    await QuestService(conn).get_quest(quest_id)
     entities = await QuestionRepository(conn).list_by_quest(quest_id)
     return [
         QuestionResponse(

@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class QuestionCreate(BaseModel):
@@ -9,8 +9,16 @@ class QuestionCreate(BaseModel):
     option_b: str
     option_c: Optional[str] = None
     option_d: Optional[str] = None
-    correct: str
+    correct: Literal["A", "B", "C", "D"]
     sort_order: int = 0
+
+    @model_validator(mode="after")
+    def validate_matching_option(self):
+        if self.correct == "C" and not self.option_c:
+            raise ValueError("option_c is required when correct answer is C")
+        if self.correct == "D" and not self.option_d:
+            raise ValueError("option_d is required when correct answer is D")
+        return self
 
 
 class QuestionResponse(BaseModel):

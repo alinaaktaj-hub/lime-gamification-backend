@@ -36,8 +36,8 @@ class QuestService:
 
     async def get_quest(self, quest_id: UUID) -> QuestResponse:
         entity = await self.quest_repo.find_by_id(quest_id)
-        if not entity:
-            raise HTTPException(status_code=404, detail="Quest not found")
+        if not entity or not entity.is_active:
+            raise HTTPException(status_code=404, detail="Quest not found or inactive")
         count = await self.quest_repo.get_question_count(quest_id)
         return QuestResponse(**entity.model_dump(), question_count=count)
 
