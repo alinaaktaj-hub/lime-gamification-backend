@@ -109,6 +109,15 @@ async def init_db():
         """)
 
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS group_quests (
+                group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                quest_id    UUID NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
+                assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (group_id, quest_id)
+            )
+        """)
+
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS achievements (
                 id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name        TEXT NOT NULL,

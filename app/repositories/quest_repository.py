@@ -42,12 +42,42 @@ class QuestRepository:
         )
         return [QuestEntity(**dict(r)) for r in rows]
 
+    async def list_active_for_student(self, student_id: UUID) -> List[QuestEntity]:
+        rows = await self.conn.fetch(
+            """SELECT DISTINCT q.*
+               FROM quests q
+               JOIN group_quests gq ON gq.quest_id = q.id
+               JOIN group_students gs ON gs.group_id = gq.group_id
+               WHERE gs.student_id = $1
+                 AND q.is_active = true
+               ORDER BY q.created_at DESC""",
+            student_id,
+        )
+        return [QuestEntity(**dict(r)) for r in rows]
+
     async def list_by_teacher(self, teacher_id: UUID) -> List[QuestEntity]:
         rows = await self.conn.fetch(
             "SELECT * FROM quests WHERE teacher_id = $1 ORDER BY created_at DESC",
             teacher_id,
         )
         return [QuestEntity(**dict(r)) for r in rows]
+
+    async def find_active_for_student(
+        self, student_id: UUID, quest_id: UUID
+    ) -> Optional[QuestEntity]:
+        row = await self.conn.fetchrow(
+            """SELECT q.*
+               FROM quests q
+               JOIN group_quests gq ON gq.quest_id = q.id
+               JOIN group_students gs ON gs.group_id = gq.group_id
+               WHERE gs.student_id = $1
+                 AND q.id = $2
+                 AND q.is_active = true
+               LIMIT 1""",
+            student_id,
+            quest_id,
+        )
+        return QuestEntity(**dict(row)) if row else None
 
     async def update(self, quest_id: UUID, **fields) -> Optional[QuestEntity]:
         if not fields:

@@ -120,3 +120,81 @@ def test_complete_quest_prevents_double_award():
 
     assert exc.value.status_code == 409
     assert update_calls["count"] == 0
+
+
+def test_start_quest_rejects_unassigned_or_inactive_quest():
+    student_id = uuid4()
+    quest_id = uuid4()
+    service = StudentQuestService(None)
+
+    async def find_active_for_student(requested_student_id, requested_quest_id):
+        return None
+
+    service.quest_repo = SimpleNamespace(
+        find_active_for_student=find_active_for_student
+    )
+    service.sq_repo = SimpleNamespace(
+        find_any=lambda sid, qid: None,
+        create=lambda sid, qid, total: None,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(service.start_quest(student_id, quest_id))
+
+    assert exc.value.status_code == 404
+
+
+def test_start_quest_keeps_already_started_409_behavior():
+    student_id = uuid4()
+    quest_id = uuid4()
+    service = StudentQuestService(None)
+
+    async def find_active_for_student(requested_student_id, requested_quest_id):
+        return SimpleNamespace(id=requested_quest_id, is_active=True)
+
+    async def find_any(requested_student_id, requested_quest_id):
+        return SimpleNamespace(id=uuid4())
+
+    service.quest_repo = SimpleNamespace(
+        find_active_for_student=find_active_for_student,
+        get_question_count=lambda qid: 2,
+    )
+    service.sq_repo = SimpleNamespace(
+        find_any=find_any,
+        create=lambda sid, qid, total: None,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(service.start_quest(student_id, quest_id))
+
+    assert exc.value.status_code == 409
+
+
+def test_start_quest_keeps_no_questions_400_behavior():
+    student_id = uuid4()
+    quest_id = uuid4()
+    service = StudentQuestService(None)
+
+    async def find_active_for_student(requested_student_id, requested_quest_id):
+        return SimpleNamespace(id=requested_quest_id, is_active=True)
+
+    async def find_any(requested_student_id, requested_quest_id):
+        return None
+
+    async def get_question_count(qid):
+        return 0
+
+    service.quest_repo = SimpleNamespace(
+        find_active_for_student=find_active_for_student,
+        get_question_count=get_question_count,
+    )
+    service.sq_repo = SimpleNamespace(
+        find_any=find_any,
+        create=lambda sid, qid, total: None,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(service.start_quest(student_id, quest_id))
+
+    assert exc.value.status_code == 400
+    assert "no questions" in exc.value.detail.lower()

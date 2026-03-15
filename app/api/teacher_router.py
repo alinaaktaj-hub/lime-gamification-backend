@@ -9,6 +9,7 @@ from app.auth.dependencies import require_teacher
 from app.entities.user import UserEntity
 from app.services.quest_service import QuestService
 from app.services.group_service import GroupService
+from app.services.group_quest_service import GroupQuestService
 from app.services.user_service import UserService
 from app.repositories.achievement_repository import AchievementRepository
 from app.repositories.quest_repository import QuestRepository
@@ -20,7 +21,12 @@ from app.dtos.achievement_dtos import (
     AchievementResponse,
     AchievementUpdate,
 )
-from app.dtos.group_dtos import GroupCreate, GroupResponse, GroupDetailResponse
+from app.dtos.group_dtos import (
+    GroupCreate,
+    GroupResponse,
+    GroupDetailResponse,
+    GroupQuestResponse,
+)
 from app.dtos.user_dtos import StudentCreate, UserCreate, UserResponse
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
@@ -167,6 +173,37 @@ async def remove_student_from_group(
     conn: asyncpg.Connection = Depends(get_db),
 ):
     await GroupService(conn).remove_student(group_id, student_id, user.id)
+    return {"ok": True}
+
+
+@router.post("/groups/{group_id}/quests/{quest_id}")
+async def assign_quest_to_group(
+    group_id: UUID,
+    quest_id: UUID,
+    user: UserEntity = Depends(require_teacher),
+    conn: asyncpg.Connection = Depends(get_db),
+):
+    await GroupQuestService(conn).assign_quest_to_group(group_id, quest_id, user.id)
+    return {"ok": True}
+
+
+@router.get("/groups/{group_id}/quests", response_model=List[GroupQuestResponse])
+async def list_group_quests(
+    group_id: UUID,
+    user: UserEntity = Depends(require_teacher),
+    conn: asyncpg.Connection = Depends(get_db),
+):
+    return await GroupQuestService(conn).list_group_quests(group_id, user.id)
+
+
+@router.delete("/groups/{group_id}/quests/{quest_id}")
+async def unassign_quest_from_group(
+    group_id: UUID,
+    quest_id: UUID,
+    user: UserEntity = Depends(require_teacher),
+    conn: asyncpg.Connection = Depends(get_db),
+):
+    await GroupQuestService(conn).unassign_quest_from_group(group_id, quest_id, user.id)
     return {"ok": True}
 
 
