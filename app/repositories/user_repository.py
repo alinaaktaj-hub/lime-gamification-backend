@@ -22,6 +22,16 @@ class UserRepository:
         )
         return UserEntity(**dict(row)) if row else None
 
+    async def update_password_hash(self, user_id: UUID, hashed_password: str) -> bool:
+        result = await self.conn.execute(
+            """UPDATE users
+               SET hashed_password = $2
+               WHERE id = $1""",
+            user_id,
+            hashed_password,
+        )
+        return result != "UPDATE 0"
+
     async def create(
         self, name: str, surname: str, username: str,
         hashed_password: str, role: str

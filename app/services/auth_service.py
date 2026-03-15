@@ -4,7 +4,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import HTTPException, status
 
-from app.auth.security import verify_password, create_access_token
+from app.auth.security import verify_password, create_access_token, hash_password
 from app.repositories.user_repository import UserRepository
 
 
@@ -40,3 +40,13 @@ class AuthService:
                 result["total_xp"] = sd.total_xp
                 result["level"] = sd.level
         return result
+
+    async def change_password(self, user_id: UUID, new_password: str) -> bool:
+        hashed_password = hash_password(new_password)
+        return await self.user_repo.update_password_hash(user_id, hashed_password)
+
+    async def request_password_reset(self, email: str) -> None:
+        # No email provider or reset token storage is configured yet.
+        # Keep this endpoint generic to avoid account enumeration.
+        _ = email
+        return None
