@@ -22,7 +22,7 @@ class StudentQuestService:
         self.achievement_repo = AchievementRepository(conn)
 
     async def start_quest(self, student_id: UUID, quest_id: UUID):
-        quest = await self.quest_repo.find_by_id(quest_id)
+        quest = await self.quest_repo.find_active_for_student(quest_id, student_id)
         if not quest or not quest.is_active:
             raise HTTPException(status_code=404, detail="Quest not found or inactive")
         existing = await self.sq_repo.find_any(student_id, quest_id)

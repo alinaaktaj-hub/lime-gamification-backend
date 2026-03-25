@@ -12,6 +12,13 @@ class QuestService:
     def __init__(self, conn: asyncpg.Connection):
         self.quest_repo = QuestRepository(conn)
 
+    async def _to_quest_responses(self, quests) -> List[QuestResponse]:
+        result = []
+        for q in quests:
+            count = await self.quest_repo.get_question_count(q.id)
+            result.append(QuestResponse(**q.model_dump(), question_count=count))
+        return result
+
     async def create_quest(
         self, title: str, description, xp_reward: int, teacher_id: UUID
     ) -> QuestResponse:
@@ -20,24 +27,29 @@ class QuestService:
 
     async def list_active_quests(self) -> List[QuestResponse]:
         quests = await self.quest_repo.list_active()
-        result = []
-        for q in quests:
-            count = await self.quest_repo.get_question_count(q.id)
-            result.append(QuestResponse(**q.model_dump(), question_count=count))
-        return result
+        return await self._to_quest_responses(quests)
+
+    async def list_active_quests_for_student(self, student_id: UUID) -> List[QuestResponse]:
+        quests = await self.quest_repo.list_active_for_student(student_id)
+        return await self._to_quest_responses(quests)
 
     async def list_teacher_quests(self, teacher_id: UUID) -> List[QuestResponse]:
         quests = await self.quest_repo.list_by_teacher(teacher_id)
-        result = []
-        for q in quests:
-            count = await self.quest_repo.get_question_count(q.id)
-            result.append(QuestResponse(**q.model_dump(), question_count=count))
-        return result
+        return await self._to_quest_responses(quests)
 
     async def get_quest(self, quest_id: UUID) -> QuestResponse:
         entity = await self.quest_repo.find_by_id(quest_id)
         if not entity:
             raise HTTPException(status_code=404, detail="Quest not found")
+        count = await self.quest_repo.get_question_count(quest_id)
+        return QuestResponse(**entity.model_dump(), question_count=count)
+
+    async def get_active_quest_for_student(
+        self, quest_id: UUID, student_id: UUID
+    ) -> QuestResponse:
+        entity = await self.quest_repo.find_active_for_student(quest_id, student_id)
+        if not entity:
+            raise HTTPException(status_code=404, detail="Quest not found or inactive")
         count = await self.quest_repo.get_question_count(quest_id)
         return QuestResponse(**entity.model_dump(), question_count=count)
 

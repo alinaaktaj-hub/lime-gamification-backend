@@ -27,7 +27,7 @@ async def list_quests(
     user: UserEntity = Depends(require_student),
     conn: asyncpg.Connection = Depends(get_db),
 ):
-    return await QuestService(conn).list_active_quests()
+    return await QuestService(conn).list_active_quests_for_student(user.id)
 
 
 @router.get("/quests/{quest_id}", response_model=QuestResponse)
@@ -36,7 +36,7 @@ async def get_quest(
     user: UserEntity = Depends(require_student),
     conn: asyncpg.Connection = Depends(get_db),
 ):
-    return await QuestService(conn).get_quest(quest_id)
+    return await QuestService(conn).get_active_quest_for_student(quest_id, user.id)
 
 
 @router.get("/quests/{quest_id}/questions", response_model=List[QuestionResponse])
@@ -46,6 +46,7 @@ async def get_quest_questions(
     conn: asyncpg.Connection = Depends(get_db),
 ):
     # без correct
+    await QuestService(conn).get_active_quest_for_student(quest_id, user.id)
     entities = await QuestionRepository(conn).list_by_quest(quest_id)
     return [
         QuestionResponse(
