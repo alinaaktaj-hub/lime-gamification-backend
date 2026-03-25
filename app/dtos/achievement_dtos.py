@@ -10,6 +10,12 @@ class AchievementCreate(BaseModel):
     quest_id: Optional[UUID] = None
 
 
+class AchievementUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    quest_id: Optional[UUID] = None
+
+
 class AchievementResponse(BaseModel):
     id: UUID
     name: str

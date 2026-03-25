@@ -27,7 +27,11 @@ async def list_quests(
     user: UserEntity = Depends(require_student),
     conn: asyncpg.Connection = Depends(get_db),
 ):
+<<<<<<< HEAD
     return await QuestService(conn).list_active_quests_for_student(user.id)
+=======
+    return await QuestService(conn).list_visible_quests(user.id)
+>>>>>>> 0db434d248ecd199451dc6f0ca0b2f913576f171
 
 
 @router.get("/quests/{quest_id}", response_model=QuestResponse)
@@ -36,7 +40,11 @@ async def get_quest(
     user: UserEntity = Depends(require_student),
     conn: asyncpg.Connection = Depends(get_db),
 ):
+<<<<<<< HEAD
     return await QuestService(conn).get_active_quest_for_student(quest_id, user.id)
+=======
+    return await QuestService(conn).get_visible_quest(user.id, quest_id)
+>>>>>>> 0db434d248ecd199451dc6f0ca0b2f913576f171
 
 
 @router.get("/quests/{quest_id}/questions", response_model=List[QuestionResponse])
@@ -45,8 +53,12 @@ async def get_quest_questions(
     user: UserEntity = Depends(require_student),
     conn: asyncpg.Connection = Depends(get_db),
 ):
+<<<<<<< HEAD
     # без correct
     await QuestService(conn).get_active_quest_for_student(quest_id, user.id)
+=======
+    await QuestService(conn).get_visible_quest(user.id, quest_id)
+>>>>>>> 0db434d248ecd199451dc6f0ca0b2f913576f171
     entities = await QuestionRepository(conn).list_by_quest(quest_id)
     return [
         QuestionResponse(

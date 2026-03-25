@@ -5,6 +5,7 @@ import asyncpg
 from fastapi import HTTPException
 
 from app.repositories.group_repository import GroupRepository
+from app.repositories.user_repository import UserRepository
 from app.dtos.group_dtos import GroupResponse, GroupDetailResponse
 from app.dtos.user_dtos import StudentResponse
 
@@ -12,6 +13,7 @@ from app.dtos.user_dtos import StudentResponse
 class GroupService:
     def __init__(self, conn: asyncpg.Connection):
         self.group_repo = GroupRepository(conn)
+        self.user_repo = UserRepository(conn)
 
     async def create_group(self, name: str, teacher_id: UUID) -> GroupResponse:
         entity = await self.group_repo.create(name, teacher_id)
@@ -33,10 +35,14 @@ class GroupService:
             result.append(GroupResponse(**g.model_dump(), student_count=count))
         return result
 
-    async def get_group_detail(self, group_id: UUID) -> GroupDetailResponse:
+    async def get_group_detail(
+        self, group_id: UUID, teacher_id: UUID = None
+    ) -> GroupDetailResponse:
         group = await self.group_repo.find_by_id(group_id)
         if not group:
             raise HTTPException(status_code=404, detail="Group not found")
+        if teacher_id is not None and group.teacher_id != teacher_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
         students_raw = await self.group_repo.get_students(group_id)
         students = [StudentResponse(**s) for s in students_raw]
         return GroupDetailResponse(
@@ -44,11 +50,26 @@ class GroupService:
             created_at=group.created_at, students=students,
         )
 
-    async def add_student(self, group_id: UUID, student_id: UUID):
+    async def add_student(self, group_id: UUID, student_id: UUID, teacher_id: UUID):
         group = await self.group_repo.find_by_id(group_id)
         if not group:
             raise HTTPException(status_code=404, detail="Group not found")
-        await self.group_repo.add_student(group_id, student_id)
+        if group.teacher_id != teacher_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        student = await self.user_repo.find_by_id(student_id)
+        if not student:
+            raise HTTPException(status_code=400, detail="Student not found")
+        if student.role != "student":
+            raise HTTPException(status_code=400, detail="Target user must be a student")
+        try:
+            await self.group_repo.add_student(group_id, student_id)
+        except asyncpg.ForeignKeyViolationError:
+            raise HTTPException(status_code=400, detail="Student not found")
 
-    async def remove_student(self, group_id: UUID, student_id: UUID):
+    async def remove_student(self, group_id: UUID, student_id: UUID, teacher_id: UUID):
+        group = await self.group_repo.find_by_id(group_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
+        if group.teacher_id != teacher_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
         await self.group_repo.remove_student(group_id, student_id)

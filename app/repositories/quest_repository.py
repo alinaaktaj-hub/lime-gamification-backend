@@ -27,6 +27,15 @@ class QuestRepository:
         )
         return QuestEntity(**dict(row)) if row else None
 
+    async def is_owned_by(self, quest_id: UUID, teacher_id: UUID) -> bool:
+        return await self.conn.fetchval(
+            """SELECT EXISTS(
+                 SELECT 1 FROM quests WHERE id = $1 AND teacher_id = $2
+               )""",
+            quest_id,
+            teacher_id,
+        )
+
     async def list_active(self) -> List[QuestEntity]:
         rows = await self.conn.fetch(
             "SELECT * FROM quests WHERE is_active = true ORDER BY created_at DESC"
@@ -37,14 +46,22 @@ class QuestRepository:
         rows = await self.conn.fetch(
             """SELECT DISTINCT q.*
                FROM quests q
+<<<<<<< HEAD
                JOIN groups g ON g.teacher_id = q.teacher_id
                JOIN group_students gs ON gs.group_id = g.id
                WHERE gs.student_id = $1 AND q.is_active = true
+=======
+               JOIN group_quests gq ON gq.quest_id = q.id
+               JOIN group_students gs ON gs.group_id = gq.group_id
+               WHERE gs.student_id = $1
+                 AND q.is_active = true
+>>>>>>> 0db434d248ecd199451dc6f0ca0b2f913576f171
                ORDER BY q.created_at DESC""",
             student_id,
         )
         return [QuestEntity(**dict(r)) for r in rows]
 
+<<<<<<< HEAD
     async def find_active_for_student(
         self, quest_id: UUID, student_id: UUID
     ) -> Optional[QuestEntity]:
@@ -64,12 +81,31 @@ class QuestRepository:
         )
         return QuestEntity(**dict(row)) if row else None
 
+=======
+>>>>>>> 0db434d248ecd199451dc6f0ca0b2f913576f171
     async def list_by_teacher(self, teacher_id: UUID) -> List[QuestEntity]:
         rows = await self.conn.fetch(
             "SELECT * FROM quests WHERE teacher_id = $1 ORDER BY created_at DESC",
             teacher_id,
         )
         return [QuestEntity(**dict(r)) for r in rows]
+
+    async def find_active_for_student(
+        self, student_id: UUID, quest_id: UUID
+    ) -> Optional[QuestEntity]:
+        row = await self.conn.fetchrow(
+            """SELECT q.*
+               FROM quests q
+               JOIN group_quests gq ON gq.quest_id = q.id
+               JOIN group_students gs ON gs.group_id = gq.group_id
+               WHERE gs.student_id = $1
+                 AND q.id = $2
+                 AND q.is_active = true
+               LIMIT 1""",
+            student_id,
+            quest_id,
+        )
+        return QuestEntity(**dict(row)) if row else None
 
     async def update(self, quest_id: UUID, **fields) -> Optional[QuestEntity]:
         if not fields:

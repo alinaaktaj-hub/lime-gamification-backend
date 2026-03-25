@@ -40,6 +40,12 @@ class QuestionRepository:
         )
         return QuestionEntity(**dict(row)) if row else None
 
+    async def find_quest_id(self, question_id: UUID) -> Optional[UUID]:
+        return await self.conn.fetchval(
+            "SELECT quest_id FROM questions WHERE id = $1",
+            question_id,
+        )
+
     async def delete(self, question_id: UUID) -> bool:
         result = await self.conn.execute(
             "DELETE FROM questions WHERE id = $1", question_id

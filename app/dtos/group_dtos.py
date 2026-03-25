@@ -23,3 +23,15 @@ class GroupDetailResponse(BaseModel):
     teacher_id: UUID
     created_at: datetime
     students: List[StudentResponse]
+
+
+class GroupQuestResponse(BaseModel):
+    id: UUID
+    title: str
+    description: Optional[str]
+    xp_reward: int
+    teacher_id: UUID
+    is_active: bool
+    created_at: datetime
+    question_count: int
+    assigned_at: datetime

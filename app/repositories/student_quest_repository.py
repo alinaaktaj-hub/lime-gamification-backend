@@ -56,14 +56,15 @@ class StudentQuestRepository:
             )
         return StudentQuestEntity(**dict(row))
 
-    async def complete(self, sq_id: UUID) -> StudentQuestEntity:
+    async def complete(self, sq_id: UUID) -> Optional[StudentQuestEntity]:
         row = await self.conn.fetchrow(
             """UPDATE student_quests
                SET status = 'completed', finished_at = NOW()
-               WHERE id = $1 RETURNING *""",
+               WHERE id = $1 AND status = 'in_progress'
+               RETURNING *""",
             sq_id,
         )
-        return StudentQuestEntity(**dict(row))
+        return StudentQuestEntity(**dict(row)) if row else None
 
     async def list_by_student(self, student_id: UUID) -> List[dict]:
         rows = await self.conn.fetch(

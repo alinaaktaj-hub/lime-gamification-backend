@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
@@ -21,3 +21,15 @@ class MeResponse(BaseModel):
     role: str
     total_xp: Optional[int] = None
     level: Optional[int] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str = Field(min_length=8)
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class MessageResponse(BaseModel):
+    message: str

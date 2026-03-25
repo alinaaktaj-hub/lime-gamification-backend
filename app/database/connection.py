@@ -14,6 +14,7 @@ async def init_db():
     db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=10)
 
     async with db_pool.acquire() as conn:
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -104,6 +105,15 @@ async def init_db():
                 group_id   UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
                 student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 PRIMARY KEY (group_id, student_id)
+            )
+        """)
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS group_quests (
+                group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                quest_id    UUID NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
+                assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (group_id, quest_id)
             )
         """)
 

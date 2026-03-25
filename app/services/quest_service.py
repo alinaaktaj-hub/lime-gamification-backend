@@ -37,10 +37,25 @@ class QuestService:
         quests = await self.quest_repo.list_by_teacher(teacher_id)
         return await self._to_quest_responses(quests)
 
+    async def list_visible_quests(self, student_id: UUID) -> List[QuestResponse]:
+        quests = await self.quest_repo.list_active_for_student(student_id)
+        result = []
+        for q in quests:
+            count = await self.quest_repo.get_question_count(q.id)
+            result.append(QuestResponse(**q.model_dump(), question_count=count))
+        return result
+
     async def get_quest(self, quest_id: UUID) -> QuestResponse:
         entity = await self.quest_repo.find_by_id(quest_id)
+        if not entity or not entity.is_active:
+            raise HTTPException(status_code=404, detail="Quest not found or inactive")
+        count = await self.quest_repo.get_question_count(quest_id)
+        return QuestResponse(**entity.model_dump(), question_count=count)
+
+    async def get_visible_quest(self, student_id: UUID, quest_id: UUID) -> QuestResponse:
+        entity = await self.quest_repo.find_active_for_student(student_id, quest_id)
         if not entity:
-            raise HTTPException(status_code=404, detail="Quest not found")
+            raise HTTPException(status_code=404, detail="Quest not found or inactive")
         count = await self.quest_repo.get_question_count(quest_id)
         return QuestResponse(**entity.model_dump(), question_count=count)
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserCreate(BaseModel):
@@ -9,6 +9,15 @@ class UserCreate(BaseModel):
     username: str
     password: str = Field(min_length=4)
     role: str
+
+
+class StudentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    surname: str
+    username: str
+    password: str = Field(min_length=4)
 
 
 class UserResponse(BaseModel):
