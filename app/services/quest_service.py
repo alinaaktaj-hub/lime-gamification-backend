@@ -62,7 +62,7 @@ class QuestService:
     async def get_active_quest_for_student(
         self, quest_id: UUID, student_id: UUID
     ) -> QuestResponse:
-        entity = await self.quest_repo.find_active_for_student(quest_id, student_id)
+        entity = await self.quest_repo.find_active_for_student(student_id, quest_id)
         if not entity:
             raise HTTPException(status_code=404, detail="Quest not found or inactive")
         count = await self.quest_repo.get_question_count(quest_id)

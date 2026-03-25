@@ -22,13 +22,8 @@ class StudentQuestService:
         self.achievement_repo = AchievementRepository(conn)
 
     async def start_quest(self, student_id: UUID, quest_id: UUID):
-<<<<<<< HEAD
-        quest = await self.quest_repo.find_active_for_student(quest_id, student_id)
-        if not quest or not quest.is_active:
-=======
         quest = await self.quest_repo.find_active_for_student(student_id, quest_id)
         if not quest:
->>>>>>> 0db434d248ecd199451dc6f0ca0b2f913576f171
             raise HTTPException(status_code=404, detail="Quest not found or inactive")
         existing = await self.sq_repo.find_any(student_id, quest_id)
         if existing:
@@ -98,16 +93,6 @@ class StudentQuestService:
         self, student_id: UUID, quest_id: UUID
     ) -> QuestCompleteResponse:
         sq = await self.sq_repo.find_active(student_id, quest_id)
-<<<<<<< HEAD
-        if sq:
-            return await self._complete_quest(student_id, sq.id, quest_id)
-        quest = await self.quest_repo.find_by_id(quest_id)
-        sd = await self.user_repo.get_student_data(student_id)
-        return QuestCompleteResponse(
-            xp_earned=0, total_xp=sd.total_xp if sd else 0,
-            level=sd.level if sd else 1, achievement_earned=None,
-        )
-=======
         if not sq:
             raise HTTPException(status_code=404, detail="No active quest found")
         if sq.current_q < sq.total_count:
@@ -116,4 +101,3 @@ class StudentQuestService:
                 detail="Answer all quest questions before finishing",
             )
         return await self._complete_quest(student_id, sq.id, quest_id)
->>>>>>> 0db434d248ecd199451dc6f0ca0b2f913576f171
