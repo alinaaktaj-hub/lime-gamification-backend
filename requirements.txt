@@ -5,3 +5,5 @@ bcrypt==4.2.1
 python-jose[cryptography]==3.3.0
 pydantic[email]
 python-dotenv==1.0.1
+httpx<0.28
+openai==2.29.0

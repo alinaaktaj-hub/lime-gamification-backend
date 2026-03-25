@@ -20,6 +20,23 @@ def test_settings_require_secret_key():
     assert "SECRET_KEY" in (result.stderr + result.stdout)
 
 
+def test_settings_default_openai_model():
+    env = os.environ.copy()
+    env["SECRET_KEY"] = "test-secret-key"
+    env.pop("OPENAI_MODEL", None)
+
+    result = subprocess.run(
+        [sys.executable, "-c", "from app.config.settings import OPENAI_MODEL; print(OPENAI_MODEL)"],
+        cwd=os.getcwd(),
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "gpt-5.4-nano"
+
+
 def test_init_db_enables_pgcrypto_before_table_creation(monkeypatch):
     from app.database import connection
 

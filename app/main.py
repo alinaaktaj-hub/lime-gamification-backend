@@ -5,6 +5,7 @@ from app.config import CORS_ORIGINS
 from app.database import lifespan
 from app.api import (
     auth_router,
+    chat_test_router,
     student_router,
     teacher_router,
     admin_router,
@@ -22,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router.router)
+app.include_router(chat_test_router.router)
 app.include_router(student_router.router)
 app.include_router(teacher_router.router)
 app.include_router(admin_router.router)
