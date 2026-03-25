@@ -68,7 +68,10 @@ class StudentQuestRepository:
 
     async def list_by_student(self, student_id: UUID) -> List[dict]:
         rows = await self.conn.fetch(
-            """SELECT sq.*, q.title as quest_title
+            """SELECT sq.*,
+                      q.title AS quest_title,
+                      q.description AS quest_description,
+                      q.xp_reward AS quest_xp_reward
                FROM student_quests sq
                JOIN quests q ON q.id = sq.quest_id
                WHERE sq.student_id = $1

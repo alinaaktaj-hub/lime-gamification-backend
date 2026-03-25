@@ -9,6 +9,8 @@ class StudentQuestResponse(BaseModel):
     student_id: UUID
     quest_id: UUID
     quest_title: Optional[str] = None
+    quest_description: Optional[str] = None
+    quest_xp_reward: Optional[int] = None
     current_q: int
     correct_count: int
     total_count: int
