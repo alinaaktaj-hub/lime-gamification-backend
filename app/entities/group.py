@@ -7,4 +7,5 @@ class GroupEntity(BaseModel):
     id: UUID
     name: str
     teacher_id: UUID
+    timezone: str = "UTC"
     created_at: datetime

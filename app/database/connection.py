@@ -96,9 +96,15 @@ async def init_db():
                 id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name       TEXT NOT NULL,
                 teacher_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                timezone   TEXT NOT NULL DEFAULT 'UTC',
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
         """)
+        await conn.execute(
+            """ALTER TABLE groups
+               ADD COLUMN IF NOT EXISTS timezone TEXT
+               NOT NULL DEFAULT 'UTC'"""
+        )
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS group_students (
@@ -133,6 +139,32 @@ async def init_db():
                 achievement_id UUID NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
                 earned_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 PRIMARY KEY (student_id, achievement_id)
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS student_answer_events (
+                id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                quest_id        UUID NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
+                question_id     UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+                student_quest_id UUID NOT NULL REFERENCES student_quests(id) ON DELETE CASCADE,
+                question_index  INTEGER NOT NULL,
+                submitted_answer TEXT NOT NULL,
+                is_correct      BOOLEAN NOT NULL,
+                answered_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS iceberg_view_audit (
+                id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                group_id               UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                teacher_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                viewed_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                deep_layer_state       TEXT NOT NULL,
+                deep_dot_count         INTEGER NOT NULL DEFAULT 0,
+                cache_state            TEXT NOT NULL,
+                model_snapshot         TEXT,
+                flagged_username_count INTEGER NOT NULL DEFAULT 0
             )
         """)
 

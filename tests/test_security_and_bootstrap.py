@@ -34,7 +34,7 @@ def test_settings_default_openai_model():
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "gpt-5.4-nano"
+    assert result.stdout.strip() == "gpt-5-mini-2025-08-07"
 
 
 def test_init_db_enables_pgcrypto_before_table_creation(monkeypatch):

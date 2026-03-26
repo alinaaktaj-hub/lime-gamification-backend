@@ -13,6 +13,7 @@ class GroupResponse(BaseModel):
     id: UUID
     name: str
     teacher_id: UUID
+    timezone: str = "UTC"
     created_at: datetime
     student_count: Optional[int] = None
 
@@ -21,6 +22,7 @@ class GroupDetailResponse(BaseModel):
     id: UUID
     name: str
     teacher_id: UUID
+    timezone: str = "UTC"
     created_at: datetime
     students: List[StudentResponse]
 

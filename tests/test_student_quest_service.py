@@ -198,3 +198,58 @@ def test_start_quest_keeps_no_questions_400_behavior():
 
     assert exc.value.status_code == 400
     assert "no questions" in exc.value.detail.lower()
+
+
+def test_answer_question_records_answer_event():
+    student_id = uuid4()
+    quest_id = uuid4()
+    sq_id = uuid4()
+    question_id = uuid4()
+    recorded = {}
+
+    service = StudentQuestService(None)
+
+    async def find_active(requested_student_id, requested_quest_id):
+        return SimpleNamespace(
+            id=sq_id,
+            student_id=requested_student_id,
+            quest_id=requested_quest_id,
+            current_q=0,
+            total_count=1,
+            correct_count=0,
+        )
+
+    async def list_by_quest(requested_quest_id):
+        return [SimpleNamespace(id=question_id, correct="A")]
+
+    async def advance(requested_sq_id, is_correct):
+        return SimpleNamespace(
+            id=requested_sq_id,
+            current_q=1,
+            correct_count=1,
+            total_count=1,
+        )
+
+    async def record(**kwargs):
+        recorded.update(kwargs)
+
+    async def complete(*args, **kwargs):
+        return None
+
+    service.sq_repo = SimpleNamespace(find_active=find_active, advance=advance)
+    service.question_repo = SimpleNamespace(list_by_quest=list_by_quest)
+    service.answer_event_repo = SimpleNamespace(record=record)
+    service._complete_quest = complete
+
+    result = asyncio.run(service.answer_question(student_id, quest_id, "A"))
+
+    assert result.correct is True
+    assert recorded == {
+        "student_id": student_id,
+        "quest_id": quest_id,
+        "question_id": question_id,
+        "student_quest_id": sq_id,
+        "question_index": 0,
+        "submitted_answer": "A",
+        "is_correct": True,
+    }

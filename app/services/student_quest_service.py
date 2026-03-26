@@ -8,6 +8,7 @@ from app.repositories.quest_repository import QuestRepository
 from app.repositories.question_repository import QuestionRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.achievement_repository import AchievementRepository
+from app.repositories.answer_event_repository import AnswerEventRepository
 from app.dtos.question_dtos import AnswerResponse
 from app.dtos.student_quest_dtos import QuestCompleteResponse
 
@@ -20,6 +21,7 @@ class StudentQuestService:
         self.question_repo = QuestionRepository(conn)
         self.user_repo = UserRepository(conn)
         self.achievement_repo = AchievementRepository(conn)
+        self.answer_event_repo = AnswerEventRepository(conn) if conn is not None else None
 
     async def start_quest(self, student_id: UUID, quest_id: UUID):
         quest = await self.quest_repo.find_active_for_student(student_id, quest_id)
@@ -48,8 +50,20 @@ class StudentQuestService:
         current_question = questions[sq.current_q]
         is_correct = answer.upper() == current_question.correct.upper()
         is_last = (sq.current_q + 1) >= sq.total_count
+        question_index = sq.current_q
 
         sq = await self.sq_repo.advance(sq.id, is_correct)
+
+        if self.answer_event_repo is not None:
+            await self.answer_event_repo.record(
+                student_id=student_id,
+                quest_id=quest_id,
+                question_id=current_question.id,
+                student_quest_id=sq.id,
+                question_index=question_index,
+                submitted_answer=answer.upper(),
+                is_correct=is_correct,
+            )
 
         if is_last:
             await self._complete_quest(student_id, sq.id, quest_id)

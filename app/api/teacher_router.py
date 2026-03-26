@@ -27,7 +27,9 @@ from app.dtos.group_dtos import (
     GroupDetailResponse,
     GroupQuestResponse,
 )
+from app.dtos.iceberg_dtos import IcebergResponse
 from app.dtos.user_dtos import StudentCreate, UserCreate, UserResponse
+from app.services.iceberg_service import IcebergService
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
 
@@ -205,6 +207,15 @@ async def unassign_quest_from_group(
 ):
     await GroupQuestService(conn).unassign_quest_from_group(group_id, quest_id, user.id)
     return {"ok": True}
+
+
+@router.get("/groups/{group_id}/iceberg", response_model=IcebergResponse)
+async def get_group_iceberg(
+    group_id: UUID,
+    user: UserEntity = Depends(require_teacher),
+    conn: asyncpg.Connection = Depends(get_db),
+):
+    return await IcebergService(conn).get_group_iceberg(group_id, user.id)
 
 
 @router.post("/achievements", response_model=AchievementResponse)
