@@ -56,10 +56,26 @@ async def init_db():
                 description TEXT,
                 xp_reward   INTEGER NOT NULL DEFAULT 10,
                 teacher_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                delivery_mode TEXT NOT NULL DEFAULT 'fixed'
+                             CHECK (delivery_mode IN ('fixed','adaptive')),
                 is_active   BOOLEAN NOT NULL DEFAULT true,
                 created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
         """)
+        await conn.execute(
+            """ALTER TABLE quests
+               ADD COLUMN IF NOT EXISTS delivery_mode TEXT
+               NOT NULL DEFAULT 'fixed'"""
+        )
+        await conn.execute(
+            """ALTER TABLE quests
+               DROP CONSTRAINT IF EXISTS quests_delivery_mode_check"""
+        )
+        await conn.execute(
+            """ALTER TABLE quests
+               ADD CONSTRAINT quests_delivery_mode_check
+               CHECK (delivery_mode IN ('fixed','adaptive'))"""
+        )
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS questions (
@@ -71,9 +87,75 @@ async def init_db():
                 option_c   TEXT,
                 option_d   TEXT,
                 correct    TEXT NOT NULL CHECK (correct IN ('A','B','C','D')),
-                sort_order INTEGER NOT NULL DEFAULT 0
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                difficulty_level TEXT
+                    CHECK (difficulty_level IS NULL OR difficulty_level IN ('easy','medium','hard')),
+                difficulty_score DOUBLE PRECISION
+                    CHECK (difficulty_score IS NULL OR (difficulty_score >= 0 AND difficulty_score <= 1)),
+                difficulty_rationale TEXT,
+                difficulty_scored_at TIMESTAMPTZ,
+                difficulty_model_version TEXT,
+                difficulty_confidence DOUBLE PRECISION
+                    CHECK (difficulty_confidence IS NULL OR (difficulty_confidence >= 0 AND difficulty_confidence <= 1)),
+                difficulty_needs_review BOOLEAN NOT NULL DEFAULT TRUE
             )
         """)
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD COLUMN IF NOT EXISTS difficulty_level TEXT"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD COLUMN IF NOT EXISTS difficulty_score DOUBLE PRECISION"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD COLUMN IF NOT EXISTS difficulty_rationale TEXT"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD COLUMN IF NOT EXISTS difficulty_scored_at TIMESTAMPTZ"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD COLUMN IF NOT EXISTS difficulty_model_version TEXT"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD COLUMN IF NOT EXISTS difficulty_confidence DOUBLE PRECISION"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD COLUMN IF NOT EXISTS difficulty_needs_review BOOLEAN
+               NOT NULL DEFAULT TRUE"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               DROP CONSTRAINT IF EXISTS questions_difficulty_level_check"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD CONSTRAINT questions_difficulty_level_check
+               CHECK (difficulty_level IS NULL OR difficulty_level IN ('easy','medium','hard'))"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               DROP CONSTRAINT IF EXISTS questions_difficulty_score_check"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD CONSTRAINT questions_difficulty_score_check
+               CHECK (difficulty_score IS NULL OR (difficulty_score >= 0 AND difficulty_score <= 1))"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               DROP CONSTRAINT IF EXISTS questions_difficulty_confidence_check"""
+        )
+        await conn.execute(
+            """ALTER TABLE questions
+               ADD CONSTRAINT questions_difficulty_confidence_check
+               CHECK (difficulty_confidence IS NULL OR (difficulty_confidence >= 0 AND difficulty_confidence <= 1))"""
+        )
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS student_quests (
@@ -83,6 +165,10 @@ async def init_db():
                 current_q     INTEGER NOT NULL DEFAULT 0,
                 correct_count INTEGER NOT NULL DEFAULT 0,
                 total_count   INTEGER NOT NULL DEFAULT 0,
+                current_question_id UUID REFERENCES questions(id) ON DELETE SET NULL,
+                current_difficulty_level TEXT
+                                  CHECK (current_difficulty_level IS NULL
+                                         OR current_difficulty_level IN ('easy','medium','hard')),
                 status        TEXT NOT NULL DEFAULT 'in_progress'
                                   CHECK (status IN ('in_progress','completed')),
                 started_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -90,6 +176,25 @@ async def init_db():
                 UNIQUE(student_id, quest_id)
             )
         """)
+        await conn.execute(
+            """ALTER TABLE student_quests
+               ADD COLUMN IF NOT EXISTS current_question_id UUID
+               REFERENCES questions(id) ON DELETE SET NULL"""
+        )
+        await conn.execute(
+            """ALTER TABLE student_quests
+               ADD COLUMN IF NOT EXISTS current_difficulty_level TEXT"""
+        )
+        await conn.execute(
+            """ALTER TABLE student_quests
+               DROP CONSTRAINT IF EXISTS student_quests_current_difficulty_level_check"""
+        )
+        await conn.execute(
+            """ALTER TABLE student_quests
+               ADD CONSTRAINT student_quests_current_difficulty_level_check
+               CHECK (current_difficulty_level IS NULL
+                      OR current_difficulty_level IN ('easy','medium','hard'))"""
+        )
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS groups (
@@ -141,6 +246,34 @@ async def init_db():
                 PRIMARY KEY (student_id, achievement_id)
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS student_answer_events (
+                id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                quest_id           UUID NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
+                question_id        UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+                student_quest_id   UUID NOT NULL REFERENCES student_quests(id) ON DELETE CASCADE,
+                question_index     INTEGER NOT NULL,
+                submitted_answer   TEXT NOT NULL,
+                is_correct         BOOLEAN NOT NULL,
+                served_difficulty  TEXT,
+                adaptation_action  TEXT,
+                adaptation_reason  TEXT,
+                answered_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        await conn.execute(
+            """ALTER TABLE student_answer_events
+               ADD COLUMN IF NOT EXISTS served_difficulty TEXT"""
+        )
+        await conn.execute(
+            """ALTER TABLE student_answer_events
+               ADD COLUMN IF NOT EXISTS adaptation_action TEXT"""
+        )
+        await conn.execute(
+            """ALTER TABLE student_answer_events
+               ADD COLUMN IF NOT EXISTS adaptation_reason TEXT"""
+        )
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS student_answer_events (
                 id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

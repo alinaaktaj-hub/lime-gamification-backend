@@ -16,3 +16,4 @@ def test_teacher_achievement_routes_are_registered():
     assert ("GET", "/teacher/groups/{group_id}/quests") in registered
     assert ("DELETE", "/teacher/groups/{group_id}/quests/{quest_id}") in registered
     assert ("GET", "/teacher/groups/{group_id}/iceberg") in registered
+    assert ("PATCH", "/teacher/questions/{question_id}") in registered

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from fastapi.security import HTTPBearer
 
@@ -9,7 +10,8 @@ _DEFAULT_CORS_ORIGINS = (
     "http://127.0.0.1:5174"
 )
 
-load_dotenv()
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(_PROJECT_ROOT / ".env")
 
 ENV = os.getenv("ENV", "development")
 

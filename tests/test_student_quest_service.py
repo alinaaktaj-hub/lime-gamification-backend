@@ -236,7 +236,11 @@ def test_answer_question_records_answer_event():
     async def complete(*args, **kwargs):
         return None
 
+    async def find_quest(requested_quest_id):
+        return SimpleNamespace(id=requested_quest_id, delivery_mode="fixed")
+
     service.sq_repo = SimpleNamespace(find_active=find_active, advance=advance)
+    service.quest_repo = SimpleNamespace(find_by_id=find_quest)
     service.question_repo = SimpleNamespace(list_by_quest=list_by_quest)
     service.answer_event_repo = SimpleNamespace(record=record)
     service._complete_quest = complete
@@ -252,4 +256,157 @@ def test_answer_question_records_answer_event():
         "question_index": 0,
         "submitted_answer": "A",
         "is_correct": True,
+        "served_difficulty": None,
+        "adaptation_action": None,
+        "adaptation_reason": None,
     }
+
+
+def test_start_adaptive_quest_selects_initial_medium_question():
+    student_id = uuid4()
+    quest_id = uuid4()
+    sq_id = uuid4()
+    medium_question = SimpleNamespace(id=uuid4(), difficulty_level="medium", difficulty_needs_review=False)
+    hard_question = SimpleNamespace(id=uuid4(), difficulty_level="hard", difficulty_needs_review=False)
+
+    service = StudentQuestService(None)
+
+    async def find_active_for_student(requested_student_id, requested_quest_id):
+        return SimpleNamespace(id=requested_quest_id, is_active=True, delivery_mode="adaptive")
+
+    async def find_any(requested_student_id, requested_quest_id):
+        return None
+
+    async def get_question_count(qid):
+        return 2
+
+    async def create(student_id, quest_id, total_count):
+        return SimpleNamespace(
+            id=sq_id,
+            student_id=student_id,
+            quest_id=quest_id,
+            current_q=0,
+            correct_count=0,
+            total_count=total_count,
+            current_question_id=None,
+            current_difficulty_level=None,
+            status="in_progress",
+            started_at=None,
+            finished_at=None,
+        )
+
+    async def list_by_quest(requested_quest_id):
+        return [hard_question, medium_question]
+
+    async def set_current_question(requested_sq_id, question_id, difficulty_level):
+        assert requested_sq_id == sq_id
+        return SimpleNamespace(
+            id=sq_id,
+            student_id=student_id,
+            quest_id=quest_id,
+            current_q=0,
+            correct_count=0,
+            total_count=2,
+            current_question_id=question_id,
+            current_difficulty_level=difficulty_level,
+            status="in_progress",
+            started_at=None,
+            finished_at=None,
+        )
+
+    service.quest_repo = SimpleNamespace(
+        find_active_for_student=find_active_for_student,
+        get_question_count=get_question_count,
+    )
+    service.sq_repo = SimpleNamespace(
+        find_any=find_any,
+        create=create,
+        set_current_question=set_current_question,
+    )
+    service.question_repo = SimpleNamespace(list_by_quest=list_by_quest)
+
+    result = asyncio.run(service.start_quest(student_id, quest_id))
+
+    assert result.current_question_id == medium_question.id
+    assert result.current_difficulty_level == "medium"
+
+
+def test_answer_adaptive_question_records_selection_metadata():
+    student_id = uuid4()
+    quest_id = uuid4()
+    sq_id = uuid4()
+    current_question = SimpleNamespace(
+        id=uuid4(),
+        correct="A",
+        difficulty_level="medium",
+        difficulty_needs_review=False,
+    )
+    next_question = SimpleNamespace(
+        id=uuid4(),
+        quest_id=quest_id,
+        text="Next",
+        option_a="A",
+        option_b="B",
+        option_c=None,
+        option_d=None,
+        sort_order=1,
+        difficulty_level="medium",
+        difficulty_needs_review=False,
+    )
+    recorded = {}
+
+    service = StudentQuestService(None)
+
+    async def find_active(requested_student_id, requested_quest_id):
+        return SimpleNamespace(
+            id=sq_id,
+            student_id=requested_student_id,
+            quest_id=requested_quest_id,
+            current_q=0,
+            total_count=2,
+            correct_count=0,
+            current_question_id=current_question.id,
+            current_difficulty_level="medium",
+        )
+
+    async def find_by_id(question_id):
+        if question_id == current_question.id:
+            return current_question
+        return next_question
+
+    async def list_by_quest(requested_quest_id):
+        return [current_question, next_question]
+
+    async def list_by_student_quest(student_quest_id):
+        return []
+
+    async def advance_adaptive(requested_sq_id, is_correct, next_question_id, next_difficulty_level):
+        return SimpleNamespace(
+            id=requested_sq_id,
+            current_q=1,
+            correct_count=1,
+            total_count=2,
+            current_question_id=next_question_id,
+            current_difficulty_level=next_difficulty_level,
+        )
+
+    async def record(**kwargs):
+        recorded.update(kwargs)
+
+    async def find_quest(quest_id):
+        return SimpleNamespace(id=quest_id, delivery_mode="adaptive")
+
+    service.sq_repo = SimpleNamespace(find_active=find_active, advance_adaptive=advance_adaptive)
+    service.quest_repo = SimpleNamespace(find_by_id=find_quest)
+    service.question_repo = SimpleNamespace(find_by_id=find_by_id, list_by_quest=list_by_quest)
+    service.answer_event_repo = SimpleNamespace(record=record, list_by_student_quest=list_by_student_quest)
+
+    result = asyncio.run(service.answer_question(student_id, quest_id, "A", current_question.id))
+
+    assert result.correct is True
+    assert result.next_question.id == next_question.id
+    assert result.next_difficulty_level == "medium"
+    assert result.adaptation_action == "stay"
+    assert result.explanation == "Correct. Difficulty stayed the same because recent answers were mixed."
+    assert recorded["served_difficulty"] == "medium"
+    assert recorded["adaptation_action"] == "stay"

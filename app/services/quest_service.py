@@ -20,9 +20,20 @@ class QuestService:
         return result
 
     async def create_quest(
-        self, title: str, description, xp_reward: int, teacher_id: UUID
+        self,
+        title: str,
+        description,
+        xp_reward: int,
+        teacher_id: UUID,
+        delivery_mode: str = "fixed",
     ) -> QuestResponse:
-        entity = await self.quest_repo.create(title, description, xp_reward, teacher_id)
+        entity = await self.quest_repo.create(
+            title,
+            description,
+            xp_reward,
+            teacher_id,
+            delivery_mode,
+        )
         return QuestResponse(**entity.model_dump(), question_count=0)
 
     async def list_active_quests(self) -> List[QuestResponse]:

@@ -55,6 +55,26 @@ def test_init_db_adds_group_timezone_and_iceberg_tables(monkeypatch):
         for sql in normalized
     )
     assert any(
+        "ALTER TABLE student_answer_events ADD COLUMN IF NOT EXISTS served_difficulty TEXT" in sql
+        for sql in normalized
+    )
+    assert any(
+        "ALTER TABLE student_answer_events ADD COLUMN IF NOT EXISTS adaptation_action TEXT" in sql
+        for sql in normalized
+    )
+    assert any(
+        "ALTER TABLE student_answer_events ADD COLUMN IF NOT EXISTS adaptation_reason TEXT" in sql
+        for sql in normalized
+    )
+    assert any(
+        "ALTER TABLE student_quests ADD COLUMN IF NOT EXISTS current_question_id UUID REFERENCES questions(id) ON DELETE SET NULL" in sql
+        for sql in normalized
+    )
+    assert any(
+        "ALTER TABLE student_quests ADD COLUMN IF NOT EXISTS current_difficulty_level TEXT" in sql
+        for sql in normalized
+    )
+    assert any(
         "CREATE TABLE IF NOT EXISTS iceberg_view_audit" in sql
         for sql in normalized
     )
@@ -71,3 +91,18 @@ def test_alembic_migration_exists_for_iceberg_schema():
     assert "student_answer_events" in contents
     assert "iceberg_view_audit" in contents
     assert "timezone" in contents
+
+
+def test_alembic_migration_exists_for_adaptive_attempt_state():
+    versions_dir = Path(__file__).resolve().parents[1] / "alembic" / "versions"
+    migration_files = sorted(versions_dir.glob("*_adaptive_attempt_state.py"))
+
+    assert migration_files, "Expected an Alembic adaptive attempt state migration file"
+
+    contents = migration_files[0].read_text(encoding="utf-8")
+
+    assert "current_question_id" in contents
+    assert "current_difficulty_level" in contents
+    assert "served_difficulty" in contents
+    assert "adaptation_action" in contents
+    assert "adaptation_reason" in contents

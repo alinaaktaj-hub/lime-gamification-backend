@@ -45,8 +45,18 @@ async def get_quest_questions(
     user: UserEntity = Depends(require_student),
     conn: asyncpg.Connection = Depends(get_db),
 ):
-    await QuestService(conn).get_visible_quest(user.id, quest_id)
-    entities = await QuestionRepository(conn).list_by_quest(quest_id)
+    quest = await QuestService(conn).get_visible_quest(user.id, quest_id)
+    question_repo = QuestionRepository(conn)
+    if quest.delivery_mode == "adaptive":
+        sq = await StudentQuestRepository(conn).find_active(user.id, quest_id)
+        if not sq or not sq.current_question_id:
+            return []
+        entity = await question_repo.find_by_id(sq.current_question_id)
+        if not entity:
+            return []
+        entities = [entity]
+    else:
+        entities = await question_repo.list_by_quest(quest_id)
     return [
         QuestionResponse(
             id=q.id, quest_id=q.quest_id, text=q.text,
@@ -65,10 +75,34 @@ async def start_quest(
     conn: asyncpg.Connection = Depends(get_db),
 ):
     sq = await StudentQuestService(conn).start_quest(user.id, quest_id)
+    current_question = None
+    adaptation_action = None
+    adaptation_reason = None
+    if sq.current_question_id:
+        question = await QuestionRepository(conn).find_by_id(sq.current_question_id)
+        if question:
+            current_question = QuestionResponse(
+                id=question.id,
+                quest_id=question.quest_id,
+                text=question.text,
+                option_a=question.option_a,
+                option_b=question.option_b,
+                option_c=question.option_c,
+                option_d=question.option_d,
+                sort_order=question.sort_order,
+            )
+            adaptation_action = "start"
+            adaptation_reason = "Quest starts at medium difficulty."
     return StudentQuestResponse(
         id=sq.id, student_id=sq.student_id, quest_id=sq.quest_id,
         current_q=sq.current_q, correct_count=sq.correct_count,
-        total_count=sq.total_count, status=sq.status,
+        total_count=sq.total_count,
+        current_question_id=sq.current_question_id,
+        current_difficulty_level=sq.current_difficulty_level,
+        current_question=current_question,
+        adaptation_action=adaptation_action,
+        adaptation_reason=adaptation_reason,
+        status=sq.status,
         started_at=sq.started_at, finished_at=sq.finished_at,
     )
 
@@ -80,7 +114,7 @@ async def answer_question(
     conn: asyncpg.Connection = Depends(get_db),
 ):
     return await StudentQuestService(conn).answer_question(
-        user.id, body.quest_id, body.answer
+        user.id, body.quest_id, body.answer, body.question_id
     )
 
 

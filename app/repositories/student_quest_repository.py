@@ -43,16 +43,71 @@ class StudentQuestRepository:
         if is_correct:
             row = await self.conn.fetchrow(
                 """UPDATE student_quests
-                   SET current_q = current_q + 1, correct_count = correct_count + 1
+                   SET current_q = current_q + 1,
+                       correct_count = correct_count + 1,
+                       current_question_id = NULL,
+                       current_difficulty_level = NULL
                    WHERE id = $1 RETURNING *""",
                 sq_id,
             )
         else:
             row = await self.conn.fetchrow(
                 """UPDATE student_quests
-                   SET current_q = current_q + 1
+                   SET current_q = current_q + 1,
+                       current_question_id = NULL,
+                       current_difficulty_level = NULL
                    WHERE id = $1 RETURNING *""",
                 sq_id,
+            )
+        return StudentQuestEntity(**dict(row))
+
+    async def set_current_question(
+        self,
+        sq_id: UUID,
+        question_id: UUID,
+        difficulty_level: str,
+    ) -> StudentQuestEntity:
+        row = await self.conn.fetchrow(
+            """UPDATE student_quests
+               SET current_question_id = $2,
+                   current_difficulty_level = $3
+               WHERE id = $1
+               RETURNING *""",
+            sq_id,
+            question_id,
+            difficulty_level,
+        )
+        return StudentQuestEntity(**dict(row))
+
+    async def advance_adaptive(
+        self,
+        sq_id: UUID,
+        is_correct: bool,
+        next_question_id: Optional[UUID],
+        next_difficulty_level: Optional[str],
+    ) -> StudentQuestEntity:
+        if is_correct:
+            row = await self.conn.fetchrow(
+                """UPDATE student_quests
+                   SET current_q = current_q + 1,
+                       correct_count = correct_count + 1,
+                       current_question_id = $2,
+                       current_difficulty_level = $3
+                   WHERE id = $1 RETURNING *""",
+                sq_id,
+                next_question_id,
+                next_difficulty_level,
+            )
+        else:
+            row = await self.conn.fetchrow(
+                """UPDATE student_quests
+                   SET current_q = current_q + 1,
+                       current_question_id = $2,
+                       current_difficulty_level = $3
+                   WHERE id = $1 RETURNING *""",
+                sq_id,
+                next_question_id,
+                next_difficulty_level,
             )
         return StudentQuestEntity(**dict(row))
 

@@ -6,6 +6,8 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.student_router import get_quest, get_quest_questions, list_quests
+from app.repositories.question_repository import QuestionRepository
+from app.repositories.student_quest_repository import StudentQuestRepository
 from app.services.quest_service import QuestService
 
 
@@ -76,3 +78,41 @@ def test_student_question_route_rejects_unassigned_quest(monkeypatch):
         )
 
     assert exc.value.status_code == 404
+
+
+def test_student_question_route_returns_only_current_question_for_adaptive_quest(monkeypatch):
+    question_id = uuid4()
+    quest_id = uuid4()
+
+    async def fake_get_visible_quest(self, student_id, requested_quest_id):
+        return SimpleNamespace(id=requested_quest_id, delivery_mode="adaptive")
+
+    async def fake_find_active(self, student_id, requested_quest_id):
+        return SimpleNamespace(current_question_id=question_id)
+
+    async def fake_find_by_id(self, requested_question_id):
+        return SimpleNamespace(
+            id=requested_question_id,
+            quest_id=quest_id,
+            text="Adaptive question",
+            option_a="A",
+            option_b="B",
+            option_c=None,
+            option_d=None,
+            sort_order=0,
+        )
+
+    monkeypatch.setattr(QuestService, "get_visible_quest", fake_get_visible_quest)
+    monkeypatch.setattr(StudentQuestRepository, "find_active", fake_find_active)
+    monkeypatch.setattr(QuestionRepository, "find_by_id", fake_find_by_id)
+
+    result = asyncio.run(
+        get_quest_questions(
+            quest_id,
+            user=SimpleNamespace(id=uuid4(), role="student"),
+            conn=None,
+        )
+    )
+
+    assert len(result) == 1
+    assert result[0].id == question_id

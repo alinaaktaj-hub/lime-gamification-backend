@@ -15,7 +15,7 @@ from app.repositories.achievement_repository import AchievementRepository
 from app.repositories.quest_repository import QuestRepository
 from app.repositories.question_repository import QuestionRepository
 from app.dtos.quest_dtos import QuestCreate, QuestUpdate, QuestResponse
-from app.dtos.question_dtos import QuestionCreate, QuestionFullResponse
+from app.dtos.question_dtos import QuestionCreate, QuestionFullResponse, QuestionUpdate
 from app.dtos.achievement_dtos import (
     AchievementCreate,
     AchievementResponse,
@@ -66,7 +66,7 @@ async def create_quest(
     conn: asyncpg.Connection = Depends(get_db),
 ):
     return await QuestService(conn).create_quest(
-        body.title, body.description, body.xp_reward, user.id
+        body.title, body.description, body.xp_reward, user.id, body.delivery_mode
     )
 
 
@@ -87,7 +87,8 @@ async def update_quest(
     await _require_owned_quest(conn, quest_id, user.id)
     return await QuestService(conn).update_quest(
         quest_id, title=body.title, description=body.description,
-        xp_reward=body.xp_reward, is_active=body.is_active,
+        xp_reward=body.xp_reward, delivery_mode=body.delivery_mode,
+        is_active=body.is_active,
     )
 
 
@@ -101,6 +102,9 @@ async def add_question(
     entity = await QuestionRepository(conn).create(
         quest_id, body.text, body.option_a, body.option_b,
         body.option_c, body.option_d, body.correct, body.sort_order,
+        body.difficulty_level, body.difficulty_score, body.difficulty_rationale,
+        body.difficulty_scored_at, body.difficulty_model_version,
+        body.difficulty_confidence, body.difficulty_needs_review,
     )
     return QuestionFullResponse(**entity.model_dump())
 
@@ -129,6 +133,31 @@ async def delete_question(
     await _require_owned_quest(conn, quest_id, user.id)
     deleted = await question_repo.delete(question_id)
     return {"deleted": deleted}
+
+
+@router.patch("/questions/{question_id}", response_model=QuestionFullResponse)
+async def update_question_metadata(
+    question_id: UUID,
+    body: QuestionUpdate,
+    user: UserEntity = Depends(require_teacher),
+    conn: asyncpg.Connection = Depends(get_db),
+):
+    question_repo = QuestionRepository(conn)
+    quest_id = await question_repo.find_quest_id(question_id)
+    if not quest_id:
+        raise HTTPException(status_code=404, detail="Question not found")
+    await _require_owned_quest(conn, quest_id, user.id)
+    entity = await question_repo.update_metadata(
+        question_id,
+        difficulty_level=body.difficulty_level,
+        difficulty_score=body.difficulty_score,
+        difficulty_rationale=body.difficulty_rationale,
+        difficulty_scored_at=body.difficulty_scored_at,
+        difficulty_model_version=body.difficulty_model_version,
+        difficulty_confidence=body.difficulty_confidence,
+        difficulty_needs_review=body.difficulty_needs_review,
+    )
+    return QuestionFullResponse(**entity.model_dump())
 
 
 @router.post("/groups", response_model=GroupResponse)

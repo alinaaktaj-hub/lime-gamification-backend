@@ -12,12 +12,12 @@ class QuestRepository:
 
     async def create(
         self, title: str, description: Optional[str],
-        xp_reward: int, teacher_id: UUID
+        xp_reward: int, teacher_id: UUID, delivery_mode: str = "fixed"
     ) -> QuestEntity:
         row = await self.conn.fetchrow(
-            """INSERT INTO quests (title, description, xp_reward, teacher_id)
-               VALUES ($1, $2, $3, $4) RETURNING *""",
-            title, description, xp_reward, teacher_id,
+            """INSERT INTO quests (title, description, xp_reward, teacher_id, delivery_mode)
+               VALUES ($1, $2, $3, $4, $5) RETURNING *""",
+            title, description, xp_reward, teacher_id, delivery_mode,
         )
         return QuestEntity(**dict(row))
 
